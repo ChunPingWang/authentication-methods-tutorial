@@ -595,11 +595,59 @@ docker compose up -d
 把 SSO 的身分來源從記憶體換成 LDAP，而**完全不動 domain**。
 
 ### Kubernetes
+
+整體部署架構（App + Keycloak + OpenLDAP 都在同一個 `auth-tutorial` namespace）：
+
+```mermaid
+flowchart TB
+    User["🧑 使用者 / 瀏覽器<br/>(叢集外)"]
+
+    subgraph CLUSTER["Kubernetes Cluster"]
+        subgraph NS["namespace: auth-tutorial"]
+            subgraph APP["教學應用程式"]
+                AppSvc["Service: auth-tutorial-app<br/>type=NodePort 30080 → 8080"]
+                AppPod["Pod: auth-tutorial-app<br/>image auth-tutorial:1.0.0<br/>/actuator/health"]
+                AppSvc --> AppPod
+            end
+            subgraph KC["IdP"]
+                KcSvc["Service: keycloak<br/>ClusterIP :8080"]
+                KcPod["Pod: keycloak 26<br/>realm=tutorial"]
+                KcSvc --> KcPod
+            end
+            subgraph LD["企業目錄"]
+                LdapSvc["Service: openldap<br/>ClusterIP :389 / :636"]
+                LdapPod["Pod: openldap<br/>dc=tutorial,dc=local"]
+                LdapSvc --> LdapPod
+            end
+        end
+    end
+
+    User -->|"HTTP NodePort :30080"| AppSvc
+    AppPod -->|"OIDC 驗證 ID Token (JWKS)<br/>keycloak.auth-tutorial.svc:8080/realms/tutorial"| KcSvc
+    KcPod -->|"User Federation<br/>ldap://openldap:389"| LdapSvc
+    AppPod -.->|"可擴充：LdapIdentityProviderAdapter<br/>讓 SSO 直接查 LDAP"| LdapSvc
+
+    classDef app fill:#eef7ff,stroke:#2b6cb0;
+    classDef idp fill:#fff5f5,stroke:#c53030;
+    classDef dir fill:#f0fff4,stroke:#2f855a;
+    class AppSvc,AppPod app;
+    class KcSvc,KcPod idp;
+    class LdapSvc,LdapPod dir;
+```
+
+**叢集內的關係：**
+- 使用者從叢集外經 **NodePort `30080`** 打到 App。
+- App 透過叢集 DNS `keycloak.auth-tutorial.svc.cluster.local:8080` 取得 Keycloak 的 **JWKS 公鑰**來驗證 ID Token（見 `k8s/app.yaml` 的 `OIDC_TRUSTED-ISSUER`）。
+- Keycloak 以 **User Federation** 連到 `openldap:389`，把企業目錄當作使用者來源（在 Keycloak realm 設定）。
+- （選配）App 的 SSO 也可加一個 `LdapIdentityProviderAdapter` 直接查 LDAP —— domain 不需更動。
+
+部署指令：
 ```bash
 docker build -t auth-tutorial:1.0.0 .
 kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/keycloak.yaml
-kubectl apply -f k8s/app.yaml
+kubectl apply -f k8s/openldap.yaml   # 企業目錄
+kubectl apply -f k8s/keycloak.yaml   # IdP（可在 realm 設定指向 openldap 的 User Federation）
+kubectl apply -f k8s/app.yaml        # 教學應用程式
 ```
 
 ---
