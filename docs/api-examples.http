@@ -1,0 +1,52 @@
+### 認證方法教學 — REST API 範例
+### 可用 IntelliJ HTTP Client / VS Code REST Client 直接執行。
+### 先啟動應用程式： ./mvnw spring-boot:run  （或 mvn spring-boot:run）
+
+@host = http://localhost:8080
+
+### ───────────────────────── SSO ─────────────────────────
+### 1) 登入一次（取得 sessionId）
+POST {{host}}/api/sso/login
+Content-Type: application/json
+
+{ "username": "alice", "password": "wonderland" }
+
+### 2) 用 sessionId 存取 App（免再次登入）— 請把 SESSION_ID 換成上一步回傳值
+POST {{host}}/api/sso/sessions/SESSION_ID/access
+Content-Type: application/json
+
+{ "applicationId": "gmail" }
+
+
+### ──────────────────────── OAuth 2.0 ────────────────────────
+### 3) 授權：使用者同意後核發 access token
+POST {{host}}/api/oauth/authorize
+Content-Type: application/json
+
+{
+  "clientId": "app-A",
+  "resourceOwner": "alice",
+  "requestedScopes": ["contacts.read", "contacts.write"],
+  "approvedScopes": ["contacts.read"],
+  "userConsented": true
+}
+
+### 4) 以 token 存取資源（把 TOKEN 換成上一步回傳的 accessToken）
+POST {{host}}/api/oauth/resource?token=TOKEN&requiredScope=contacts.read
+
+
+### ─────────────────────────── OIDC ───────────────────────────
+### 5) 驗證 ID Token（idToken 需為以 oidc.hmac-secret 簽署的 HS256 JWT，
+###    或由 Keycloak 簽發；見 README 與整合測試）
+POST {{host}}/api/oidc/verify
+Content-Type: application/json
+
+{ "idToken": "PASTE_JWT_HERE", "audience": "tutorial-app", "nonce": "n-1" }
+
+
+### ─────────────────────────── SAML ───────────────────────────
+### 6) 驗證 SAML 斷言（assertion 需以 saml.signing-secret 簽署；見 DemoSamlCodec）
+POST {{host}}/api/saml/validate
+Content-Type: application/json
+
+{ "assertion": "PASTE_SIGNED_ASSERTION_HERE", "audience": "https://sp.tutorial.local" }

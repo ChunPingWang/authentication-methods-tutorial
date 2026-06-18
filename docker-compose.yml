@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────────────────────────────────
+# 進階探索用的本機環境（教學選配，非必要）
+#
+#   docker compose up -d
+#
+#   - Keycloak (IdP)：http://localhost:8081  帳號 admin / admin
+#       匯入的 realm：tutorial（使用者 alice / wonderland）
+#   - OpenLDAP：ldap://localhost:389  （示範企業目錄，可作為 SSO 後端）
+#   - phpLDAPadmin：http://localhost:8082  瀏覽 LDAP
+#
+# 注意：本專案的所有「測試」都不需要這個 compose 即可通過；它只是讓你能
+# 用真實的 IdP / 目錄服務手動把玩。
+# ─────────────────────────────────────────────────────────────────────────
+services:
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./src/test/resources/keycloak/tutorial-realm.json:/opt/keycloak/data/import/tutorial-realm.json:ro
+
+  openldap:
+    image: osixia/openldap:1.5.0
+    environment:
+      LDAP_ORGANISATION: "Tutorial Inc"
+      LDAP_DOMAIN: "tutorial.local"
+      LDAP_ADMIN_PASSWORD: "admin"
+    ports:
+      - "389:389"
+      - "636:636"
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:0.9.0
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: openldap
+      PHPLDAPADMIN_HTTPS: "false"
+    ports:
+      - "8082:80"
+    depends_on:
+      - openldap

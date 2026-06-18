@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────────────────
+# 認證方法教學 — 預設組態
+#
+# 這些值都有「程式內建預設」(見 BeanConfiguration 的 @Value)，
+# 在此列出方便初學者了解可調整的項目。
+# ─────────────────────────────────────────────────────────────────────────
+server:
+  port: 8080
+
+spring:
+  application:
+    name: authentication-methods-tutorial
+
+# SSO：工作階段存活時間 (ISO-8601 Duration)
+sso:
+  session-ttl: PT30M
+
+# OIDC：教學用 HMAC 密鑰與信任的發行者
+oidc:
+  hmac-secret: "tutorial-oidc-hmac-secret-key-32bytes!!"   # HS256 需 >= 32 bytes
+  trusted-issuer: "https://idp.tutorial.local"
+
+# SAML：簽章密鑰與信任的發行者
+saml:
+  signing-secret: "tutorial-saml-shared-secret"
+  trusted-issuer: "https://idp.tutorial.local"
+
+logging:
+  level:
+    com.example.authtutorial: INFO
