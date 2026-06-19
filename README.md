@@ -565,6 +565,12 @@ flowchart TB
 ./mvnw verify -Pintegration
 ```
 
+> **疑難排解（新版 Docker）**：若看到 `client version 1.32 is too old. Minimum supported API version is 1.44`，
+> 代表你的 Docker Engine（25.0+）已不支援 docker-java 預設協商的舊 API。本專案已在 `pom.xml`
+> 把整合測試的 `api.version` 預設為 `1.44`；如需相容更舊的 daemon，可覆寫：
+> `./mvnw verify -Pintegration -Ddocker.api.version=<版本>`。
+> 另外請確認 `DOCKER_HOST` 指向正確的 socket（例如 `unix:///var/run/docker.sock`）。
+
 這正是六角形架構的威力：**同一個 domain / application，換上不同的被驅動端 adapter
 （HMAC 離線解碼器 ↔ Keycloak JWKS 解碼器），就能在「快速離線測試」與「真實 IdP 驗證」間自由切換。**
 
